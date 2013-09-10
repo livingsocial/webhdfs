@@ -1,7 +1,6 @@
 require 'net/http'
 require 'uri'
 require 'json'
-require 'pry'
 
 require_relative 'exceptions'
 require_relative 'body_stream'
