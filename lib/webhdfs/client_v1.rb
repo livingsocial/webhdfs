@@ -1,8 +1,10 @@
 require 'net/http'
 require 'uri'
 require 'json'
+require 'pry'
 
 require_relative 'exceptions'
+require_relative 'body_stream'
 
 module WebHDFS
   class ClientV1
@@ -256,7 +258,24 @@ module WebHDFS
                        path
                      end
 
-      res = conn.send_request(method, request_path, payload, header)
+      res = if payload.respond_to?(:read)
+              header ||= {}
+              header['Transfer-Encoding'] = 'chunked'
+              request = case method
+                        when "POST"
+                          Net::HTTP::Post.new request_path,header
+                        when "PUT"
+                          Net::HTTP::Put.new request_path,header
+                        else
+                          raise WebHDFS::ClientError, "Chunked encoding only supported for POST and PUT methods"
+                        end
+              request.body_stream = WebHDFS::BodyStream.new(payload,5)
+              conn.start do |http|
+                http.request(request)
+              end
+            else
+              conn.send_request(method, request_path, payload, header)
+            end
 
       case res
       when Net::HTTPSuccess
